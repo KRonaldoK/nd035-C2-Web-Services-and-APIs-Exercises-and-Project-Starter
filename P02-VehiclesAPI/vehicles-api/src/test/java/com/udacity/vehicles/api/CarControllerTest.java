@@ -4,6 +4,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.internal.verification.VerificationModeFactory.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +23,8 @@ import com.udacity.vehicles.domain.manufacturer.Manufacturer;
 import com.udacity.vehicles.service.CarService;
 import java.net.URI;
 import java.util.Collections;
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,10 +48,13 @@ import org.springframework.test.web.servlet.MockMvc;
 public class CarControllerTest {
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
 
     @Autowired
-    private JacksonTester<Car> json;
+    private JacksonTester<Car> carJacksonTester;
+
+    @Autowired
+    private JacksonTester<List<Car>> carListJacksonTester;
 
     @MockBean
     private CarService carService;
@@ -63,9 +70,8 @@ public class CarControllerTest {
      */
     @Before
     public void setup() {
-        Car car = getCar();
-        car.setId(1L);
-        given(carService.save(any())).willReturn(car);
+      Car car = buildCarForTest();
+      given(carService.save(any())).willReturn(car);
         given(carService.findById(any())).willReturn(car);
         given(carService.list()).willReturn(Collections.singletonList(car));
     }
@@ -77,9 +83,9 @@ public class CarControllerTest {
     @Test
     public void createCar() throws Exception {
         Car car = getCar();
-        mvc.perform(
+        mockMvc.perform(
                 post(new URI("/cars"))
-                        .content(json.write(car).getJson())
+                        .content(carJacksonTester.write(car).getJson())
                         .contentType(MediaType.APPLICATION_JSON_UTF8)
                         .accept(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(status().isCreated());
@@ -96,7 +102,22 @@ public class CarControllerTest {
          *   the whole list of vehicles. This should utilize the car from `getCar()`
          *   below (the vehicle will be the first in the list).
          */
+        Car carForTest = buildCarForTest();
 
+        List<Car> carListForTest = Collections.singletonList(carForTest);
+
+        mockMvc.perform(get("/cars").accept(MediaType.APPLICATION_JSON_UTF8))
+          .andExpect(status().isOk())
+          .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+          .andExpect(content().json("{\"_embedded\":{\"carList\":"+ carListJacksonTester.write(carListForTest).getJson()+"}}"));
+
+        verify(carService, times(1)).list();
+    }
+
+    private Car buildCarForTest() {
+      Car car = getCar();
+      car.setId(1L);
+      return car;
     }
 
     /**
@@ -109,6 +130,14 @@ public class CarControllerTest {
          * TODO: Add a test to check that the `get` method works by calling
          *   a vehicle by ID. This should utilize the car from `getCar()` below.
          */
+        Car carForTest = buildCarForTest();
+
+        mockMvc.perform(get("/cars/" + carForTest.getId()).accept(MediaType.APPLICATION_JSON_UTF8))
+          .andExpect(status().isOk())
+          .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+          .andExpect(content().json(carJacksonTester.write(carForTest).getJson()));
+
+        verify(carService, times(1)).findById(carForTest.getId());
     }
 
     /**
@@ -122,6 +151,12 @@ public class CarControllerTest {
          *   when the `delete` method is called from the Car Controller. This
          *   should utilize the car from `getCar()` below.
          */
+        Car carForTest = buildCarForTest();
+        mockMvc.perform(delete("/cars/" + carForTest.getId())
+            .accept(MediaType.APPLICATION_JSON_UTF8))
+            .andExpect(status().isNoContent())
+        ;
+        verify(carService,times(1)).delete(carForTest.getId());
     }
 
     /**

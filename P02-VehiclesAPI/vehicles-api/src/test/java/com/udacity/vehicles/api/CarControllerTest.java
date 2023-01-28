@@ -9,6 +9,7 @@ import static org.mockito.internal.verification.VerificationModeFactory.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -72,8 +73,8 @@ public class CarControllerTest {
     public void setup() {
       Car car = buildCarForTest();
       given(carService.save(any())).willReturn(car);
-        given(carService.findById(any())).willReturn(car);
-        given(carService.list()).willReturn(Collections.singletonList(car));
+      given(carService.findById(any())).willReturn(car);
+      given(carService.list()).willReturn(Collections.singletonList(car));
     }
 
     /**
@@ -89,6 +90,7 @@ public class CarControllerTest {
                         .contentType(MediaType.APPLICATION_JSON_UTF8)
                         .accept(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(status().isCreated());
+        verify(carService,times(1)).save(any());
     }
 
     /**
@@ -154,9 +156,21 @@ public class CarControllerTest {
         Car carForTest = buildCarForTest();
         mockMvc.perform(delete("/cars/" + carForTest.getId())
             .accept(MediaType.APPLICATION_JSON_UTF8))
-            .andExpect(status().isNoContent())
-        ;
+            .andExpect(status().isNoContent());
         verify(carService,times(1)).delete(carForTest.getId());
+    }
+
+    @Test
+    public void updateCar() throws Exception {
+      Car carForTest = buildCarForTest();
+      carForTest.setCondition(Condition.NEW);
+      mockMvc.perform(put(new URI("/cars/" + carForTest.getId()))
+          .accept(MediaType.APPLICATION_JSON_UTF8)
+          .content(carJacksonTester.write(carForTest).getJson())
+          .contentType(MediaType.APPLICATION_JSON_UTF8))
+          .andExpect(status().isOk());
+      verify(carService,times(1)).save(any());
+
     }
 
     /**
